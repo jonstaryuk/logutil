@@ -3,11 +3,14 @@ package logutil
 import (
 	"context"
 	"io"
+	"io/ioutil"
+	"os"
 
 	"cloud.google.com/go/logging"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 // A StackdriverLoggingWriter accepts pre-encoded JSON messages and writes
@@ -88,6 +91,16 @@ func MustUseStackdriverLogging(project, logID string, labels map[string]string, 
 		panic(err)
 	}
 	return closer
+}
+
+// ConsoleWriterIfTerminal returns a zerolog.ConsoleWriter if f is a terminal.
+// Otherwise, it returns f.
+func ConsoleWriterIfTerminal(f *os.File, colorful bool) io.Writer {
+	if terminal.IsTerminal(int(f.Fd())) {
+		return zerolog.ConsoleWriter{Out: f}
+	}
+
+	return ioutil.Discard
 }
 
 type rawJSON []byte
