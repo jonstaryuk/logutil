@@ -24,7 +24,7 @@ type StackdriverLoggingWriter struct {
 }
 
 // Write always returns len(p), nil.
-func (w StackdriverLoggingWriter) Write(p []byte) (int, error) {
+func (w *StackdriverLoggingWriter) Write(p []byte) (int, error) {
 	w.Logger.Log(logging.Entry{Payload: rawJSON(p)})
 
 	if w.Tee != nil {
@@ -35,7 +35,7 @@ func (w StackdriverLoggingWriter) Write(p []byte) (int, error) {
 }
 
 // WriteLevel implements zerolog.LevelWriter. It always returns len(p), nil.
-func (w StackdriverLoggingWriter) WriteLevel(level zerolog.Level, p []byte) (int, error) {
+func (w *StackdriverLoggingWriter) WriteLevel(level zerolog.Level, p []byte) (int, error) {
 	severity := logging.Default
 
 	// More efficient than logging.ParseSeverity(level.String())
@@ -57,10 +57,18 @@ func (w StackdriverLoggingWriter) WriteLevel(level zerolog.Level, p []byte) (int
 	w.Logger.Log(logging.Entry{Payload: rawJSON(p), Severity: severity})
 
 	if w.Tee != nil {
-		w.Tee.Write(p)
+		if lw, ok := w.Tee.(zerolog.LevelWriter); ok {
+			lw.WriteLevel(level, p)
+		} else {
+			w.Tee.Write(p)
+		}
 	}
 
 	return len(p), nil
+}
+
+func (w *StackdriverLoggingWriter) Flush() error {
+	return w.Logger.Flush()
 }
 
 // UseStackdriverLogging causes the global zerolog/log.Logger to write
@@ -79,7 +87,7 @@ func UseStackdriverLogging(project, logID string, labels map[string]string, opts
 
 	// labels comes before opts so that any CommonLabels in opts take precedence.
 	opts = append([]logging.LoggerOption{logging.CommonLabels(labels)}, opts...)
-	log.Logger = zerolog.New(StackdriverLoggingWriter{Logger: client.Logger(logID, opts...)})
+	log.Logger = zerolog.New(&StackdriverLoggingWriter{Logger: client.Logger(logID, opts...)})
 
 	return client, nil
 }

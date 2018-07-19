@@ -17,7 +17,7 @@ func ExampleStackdriverLoggingWriter() {
 	}
 	defer client.Close()
 
-	slw := logutil.StackdriverLoggingWriter{
+	slw := &logutil.StackdriverLoggingWriter{
 		Logger: client.Logger("my-log-id"),
 		Tee:    logutil.ConsoleWriterIfTerminal(os.Stderr, true),
 	}
